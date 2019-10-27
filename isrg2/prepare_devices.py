@@ -84,7 +84,7 @@ def copy_primary_image(task):
     Copies target image to device
     """
     primary_image = task.host['primary_image']
-    source_file = f'../{IOS_IMAGES_DIR}/{primary_image}'
+    source_file = f'{IOS_IMAGES_DIR}{primary_image}'
     dest_file = primary_image
     task.run(
         task=networking.netmiko_file_transfer, 
