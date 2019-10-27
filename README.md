@@ -9,10 +9,12 @@ This set of scripts is used to upgrade code on IOS devices in a programmatic way
 These scripts utilize the nornir library to execute IOS upgrade tasks against an inventory of networking devices. Nornsible is used to provide ansible-like host/group limits and tagging functionality so that the script can be limited to only those hosts/groups against which it should executed at time of execution. There are a few components which need to be specified in order for the scripts to work correctly.
 
 - Inside of the nornir inventory, a 'primary_image' key should be specified with a value corresponding to the name of the image which the target device should be running.
-- The 'NORNIR_CONFIG_FILE' environmental variable is used to set the config file. The full path of this file needs be specified. e.g. '/home/cool_user/nornir/inventory/config.yaml'
-- The "IOS_IMAGES_DIR" environmental variable is used to set the location on the local system where ios images can be found
+- The "NORNIR_CONFIG_FILE" environment variable is used to set the config file. The full path of this file needs be specified. e.g. '/home/cool_user/nornir/inventory/config.yaml'
+- The "IOS_IMAGES_DIR" environment variable is used to set the location on the local system where ios images can be found
 
-Right now, two scripts exist - one to prepare devices for upgrade, and another to reboot the devices. Verification of the version upgrade on devices is not currently accounted for in this set of scripts
+Right now, two scripts exist - one to prepare devices for upgrade, and another to reboot the devices. Verification of the version upgrade on devices is not currently accounted for in this set of scripts.
+
+# Scripts Included
 
 
 ## prepare_devices.py
