@@ -4,8 +4,32 @@ from nornsible import InitNornsible, nornsible_task
 from termcolor import colored
 import os
 
-NORNIR_CONFIG_FILE = os.environ['NORNIR_CONFIG_FILE']
-IOS_IMAGES_DIR = os.environ['IOS_IMAGES_DIR']
+def format_dir_vars(dir_var):
+    if isinstance(dir_var, str) != True:
+        raise ValueError(f"variable passed into 'format_dir_vars' function is not of type string")
+    """
+    make sure environment variables which specify a directory are formatted
+    correctly for use in script functions
+    """
+    if dir_var[-1] != '/':
+        dir_var = dir_var + '/'
+    
+    return dir_var
+
+
+@nornsible_task
+def get_file_system(task):
+    """
+    Get file system for use later in script
+    """
+    results = task.run(
+        task=networking.netmiko_send_command, 
+        command_string='dir', 
+        **{'use_textfsm': True}
+    )
+    file_system = results[0].result[0]['file_system']
+    task.host['file_system'] = file_system
+
 
 @nornsible_task
 def get_images_in_flash(task):
@@ -14,9 +38,11 @@ def get_images_in_flash(task):
     Images that have an extension of .bin and assigns to
     nornir device attribute 'images_in_flash' for later use
     """
+    file_system = task.host['file_system']
+    command = f"dir {file_system}"
     result = task.run(
         task=networking.netmiko_send_command, 
-        command_string='dir', 
+        command_string=command, 
         **{'use_textfsm': True}
     )
     files_list = result[0].result
@@ -25,6 +51,7 @@ def get_images_in_flash(task):
         if '.bin' in file['name']:
             images_list.append(file['name'])
     task.host['images_in_flash'] = images_list
+
 
 @nornsible_task
 def get_running_image(task):
@@ -40,6 +67,7 @@ def get_running_image(task):
     running_image = result[0].result[0]['running_image']
     running_image = running_image.replace('/', '')
     task.host['running_image'] = running_image
+
 
 @nornsible_task
 def get_images_to_remove(task):
@@ -58,14 +86,16 @@ def get_images_to_remove(task):
             images_to_remove.append(image)
     task.host['images_to_remove'] = images_to_remove
 
+
 @nornsible_task
 def remove_old_images(task):
     """
     Purges old images from flash on device
     """
+    file_system = task.host['file_system']
     images_to_remove = task.host['images_to_remove']
     for image in images_to_remove:
-        command = f'delete flash:/{image}'
+        command = f'delete {file_system}:/{image}'
         task.run(
             task=networking.netmiko_send_command, 
             command_string=command, 
@@ -83,13 +113,15 @@ def copy_primary_image(task):
     """
     Copies target image to device
     """
+    file_system = task.host['file_system']
     primary_image = task.host['primary_image']
     source_file = f'{IOS_IMAGES_DIR}{primary_image}'
     dest_file = primary_image
     task.run(
         task=networking.netmiko_file_transfer, 
         source_file=source_file, 
-        dest_file=dest_file
+        dest_file=dest_file,
+        file_system=file_system,
     )
 
 @nornsible_task
@@ -99,18 +131,19 @@ def set_boot_vars(task):
     running image is used as a backup. If primary image and current running image
     are the same, only the primary image is set in the boot vars
     """
+    file_system = task.host['file_system']
     primary_image = task.host['primary_image']
     secondary_image = task.host['running_image']
     if primary_image == secondary_image:
         commands = [
             'default boot system',
-            f'boot system flash:/{primary_image}',
+            f'boot system {file_system}{primary_image}',
         ]
     else:
         commands = [
         'default boot system',
-        f'boot system flash:/{primary_image}',
-        f'boot system flash:/{secondary_image}',
+        f'boot system {file_system}{primary_image}',
+        f'boot system {file_system}{secondary_image}',
     ]
     task.run(task=networking.netmiko_send_config, config_commands=commands)
     task.run(task=networking.netmiko_save_config)
@@ -122,6 +155,7 @@ def verify(task):
     which includes messages about device readiness to be parsed and printed by 
     custom 'print_results' function
     """
+    file_system = task.host['file_system']
     primary_image = task.host['primary_image']
     secondary_image = task.host['running_image']
 
@@ -129,7 +163,7 @@ def verify(task):
     results_obj = []
     result = task.run(
         task=networking.netmiko_send_command, 
-        command_string=f'dir flash:/{primary_image}'
+        command_string=f'dir {file_system}{primary_image}'
         )
     if primary_image in result[0].result:
         results_obj.append({
@@ -143,7 +177,7 @@ def verify(task):
         })
     result = task.run(
         task=networking.netmiko_send_command, 
-        command_string=f'dir flash:/{secondary_image}'
+        command_string=f'dir {file_system}{secondary_image}'
         )
     if secondary_image in result[0].result:
         results_obj.append({
@@ -216,9 +250,14 @@ def print_results(task, num_workers=1):
     for result in task.host['script_results']:
         print(colored(result['msg'], result['color']))
 
+
+NORNIR_CONFIG_FILE = os.environ['NORNIR_CONFIG_FILE']
+IOS_IMAGES_DIR = format_dir_vars(os.environ['IOS_IMAGES_DIR'])
+
 def main():
     nr = InitNornir(config_file=NORNIR_CONFIG_FILE)
     nr = InitNornsible(nr)
+    nr.run(task=get_file_system)
     nr.run(task=get_images_in_flash)
     nr.run(task=get_running_image)
     nr.run(task=get_images_to_remove)
