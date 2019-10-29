@@ -34,4 +34,4 @@ This script saves configs on target devices, reboots them, and ping's them until
 
 # Supported Platforms
 
-Currently, ISRG2s are the only supported platform. Work is being done to support the 2960 platform next, and will be followed by work to upgrade other platforms.
+Currently, Cisco ISRs are the only supported platform. Work is being done to support the 2960 platform next, and will be followed by work to upgrade other platforms.
