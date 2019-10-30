@@ -5,6 +5,7 @@ from nornir.core.task import Result
 import subprocess
 from time import sleep  
 from termcolor import colored
+import os
 
 NORNIR_CONFIG_FILE = os.environ['NORNIR_CONFIG_FILE']
 
